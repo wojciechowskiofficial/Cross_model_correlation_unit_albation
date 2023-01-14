@@ -71,6 +71,31 @@ class Scorer:
                 (preds, filter_id, no_channels, self.images) \
                  for filter_id in range(no_channels))
         return scores
+    
+    def _log_message_strings(self, 
+                            layer_name: str, 
+                            count_params: int, 
+                            which_layer: int, 
+                            len_layers: int) -> list[str]:
+        """Misc, for code line shortening
+
+        :param layer_name: Layer name
+        :param count_params: Layer parameter count
+        :param which_layer: Which consecutive layer is being processed
+        :param len_layers: No all layers
+        :return: Message
+        """    
+        log_message = list()
+        log_message.append('Currently processing layer ')
+        log_message.append(layer_name)
+        log_message.append(' with ')
+        log_message.append(str(count_params))
+        log_message.append(' parameters (layer ')
+        log_message.append(str(which_layer + 1))
+        log_message.append('/')
+        log_message.append(str(len_layers))
+        log_message.append(')')
+        return ''.join(log_message)
 
     def score_layers(self, 
                      layers: Union[str, list[str]]) -> dict[str, list[float]]:
@@ -82,8 +107,14 @@ class Scorer:
         if type(layers) == str:
             layers = [layers]      
         scores = dict()
-        for layer_name in layers:
-            print(f'Currently processing layer {layer_name}', end='\r', flush=True)
+        len_layers = len(layers)
+        for which_layer, layer_name in enumerate(layers):
+            count_params = self.base_models[0].get_layer(layer_name).count_params()
+            print(self._log_message_strings(layer_name, 
+                                            count_params, 
+                                            which_layer, 
+                                            len_layers), 
+                  end='\r', flush=True)
             # create intermediate models
             inter_models = list()
             collect()
@@ -102,5 +133,10 @@ class Scorer:
         print()
         return scores
     
-    # TODO: change method names and public status
-    # TODO: add score all layers method
+    def score_all_layers(self) -> dict[str, list[float]]:
+        """Score all layers in the model.
+
+        :return: A dictionary {layer name : list of scores}
+        """        
+        layer_names = [layer.name for layer in self.base_models[0].layers if 'conv' in layer.name]
+        return self.score_layers(layer_names)
