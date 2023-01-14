@@ -7,8 +7,7 @@ from scipy.stats import pearsonr
 from numpy.typing import NDArray
 from gc import collect
 from joblib import Parallel, delayed
-from copy import deepcopy
-from tqdm import tqdm
+from typing import Union
 
 class Scorer:  
     """Used for scoring the convolutional units
@@ -58,8 +57,8 @@ class Scorer:
                 per_channel_corr.append(pearsonr(first, second)[0])
         return max(per_channel_corr)
             
-    def score_layer(self,
-                    preds: list[NDArray[np.float32]]) -> list[float]:        
+    def _score_single_layer(self,
+                            preds: list[NDArray[np.float32]]) -> list[float]:        
         """Computes convolutional unit scores for a given layer
 
         :param preds: Avtivation values (layer outputs) of a given layer, 
@@ -73,13 +72,15 @@ class Scorer:
                  for filter_id in range(no_channels))
         return scores
 
-    def score_multiple_layers(self, 
-                              layers: list[str]) -> dict[str, list[float]]:
+    def score_layers(self, 
+                     layers: Union[str, list[str]]) -> dict[str, list[float]]:
         """Score multiple layers, which are given
 
-        :param layers: A list of layer names to be scored
+        :param layers: A layer name or list of layer names to be scored
         :return: A dictionary {layer name : list of scores}
-        """        
+        """  
+        if type(layers) == str:
+            layers = [layers]      
         scores = dict()
         for layer_name in layers:
             print(f'Currently processing layer {layer_name}', end='\r', flush=True)
@@ -97,7 +98,8 @@ class Scorer:
             for i in range(len(self.model_names)):
                 preds.append(inter_models[i].predict(self.images, verbose=False))
             # score layer by layer
-            scores[layer_name] = self.score_layer(preds)
+            scores[layer_name] = self._score_single_layer(preds)
+        print()
         return scores
     
     # TODO: change method names and public status
